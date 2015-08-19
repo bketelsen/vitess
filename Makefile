@@ -27,7 +27,7 @@ ifdef VT_MYSQL_ROOT
 endif
 
 build:
-	godep go install $(VT_GO_PARALLEL) -ldflags "$(tools/build_version_flags.sh)" ./go/...
+	godep go install $(VT_GO_PARALLEL) -gcflags="-e" -ldflags "$(tools/build_version_flags.sh)" ./go/...
 
 # Set VT_TEST_FLAGS to pass flags to python tests.
 # For example, verbose output: export VT_TEST_FLAGS=-v

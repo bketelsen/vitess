@@ -31,8 +31,8 @@ const (
 	// as opposed to the RPC layer)
 	ErrorCode_CANCELLED ErrorCode = 1
 	// UNKNOWN_ERROR includes:
-	// 1. MySQL error codes that we don't explicitly handle
-	// 2.  MySQL response that wasn't as expected. For example, we might expect a MySQL
+	// 1. MySQL error codes that we don't explicitly handle.
+	// 2. MySQL response that wasn't as expected. For example, we might expect a MySQL
 	//  timestamp to be returned in a particular way, but it wasn't.
 	// 3. Anything else that doesn't fall into a different bucket.
 	ErrorCode_UNKNOWN_ERROR ErrorCode = 2
@@ -47,9 +47,15 @@ const (
 	// PERMISSION_DENIED errors are returned when a user requests access to something
 	// that they don't have permissions for.
 	ErrorCode_PERMISSION_DENIED ErrorCode = 6
-	// THROTTLED_ERROR is returned when a user exceeds their quota in some dimension and
-	// get throttled due to that.
-	ErrorCode_THROTTLED_ERROR ErrorCode = 7
+	// RESOURCE_EXHAUSTED is returned when a query exceeds its quota in some dimension
+	// and is unable to be completed due to that. Queries that return
+	// RESOURCE_EXHAUSTED should not be retried, as it could be detrimental to the
+	// server's health.
+	// Examples of errors that will cause the RESOURCE_EXHAUSTED code:
+	// 1. TxPoolFull - this is retried server-side, and is only returned as an error
+	//  if the server-side retries failed.
+	// 2. Query is killed due to it taking too long.
+	ErrorCode_RESOURCE_EXHAUSTED ErrorCode = 7
 	// QUERY_NOT_SERVED means that a query could not be served right now.
 	// This could be due to various reasons: QueryService is not running,
 	// should not be running, wrong shard, wrong tablet type, etc. Clients that
@@ -59,18 +65,21 @@ const (
 	ErrorCode_NOT_IN_TX ErrorCode = 9
 	// INTERNAL_ERROR is returned when:
 	//  1. Something is not configured correctly internally.
-	//  2. A necessary resource is not available
-	//  3. Some other internal error occures
-	// INTERNAL_ERRORs are not problems that are expected to fix themselves, and retrying
-	// the query will not help.
+	//  2. A necessary resource is not available, and we don't expect it to become available by itself.
+	//  3. Some other internal error occurs
+	// INTERNAL_ERRORs are problem that only the server can fix, not the client.
+	// The client retrying will not help. However, it's acceptable for retries to
+	// happen internally, for example to multiple backends, in case only a single
+	// backend is not functional.
 	ErrorCode_INTERNAL_ERROR ErrorCode = 10
-	// RESOURCE_TEMPORARILY_UNAVAILABLE is used for when a resource limit has temporarily
-	// been reached. Trying this error, with an exponential backoff, should succeed.
-	// Various types of resources can be exhausted, including:
-	// 1. TxPool can be full
+	// TRANSIENT_ERROR is used for when a resource limit has temporarily been
+	// reached, or there is some other error that we expect we can recover from
+	// automatically. Trying this error, with an exponential backoff, should succeed.
+	// Examples of things that can trigger this error:
+	// 1. Query has been throttled
 	// 2. VtGate could have request backlog
-	// 3. MySQL could have a deadlock
-	ErrorCode_RESOURCE_TEMPORARILY_UNAVAILABLE ErrorCode = 11
+	// 3. VtTablet is not able to connect to MySQL (this could recover by itself)
+	ErrorCode_TRANSIENT_ERROR ErrorCode = 11
 )
 
 var ErrorCode_name = map[int32]string{
@@ -81,25 +90,25 @@ var ErrorCode_name = map[int32]string{
 	4:  "DEADLINE_EXCEEDED",
 	5:  "INTEGRITY_ERROR",
 	6:  "PERMISSION_DENIED",
-	7:  "THROTTLED_ERROR",
+	7:  "RESOURCE_EXHAUSTED",
 	8:  "QUERY_NOT_SERVED",
 	9:  "NOT_IN_TX",
 	10: "INTERNAL_ERROR",
-	11: "RESOURCE_TEMPORARILY_UNAVAILABLE",
+	11: "TRANSIENT_ERROR",
 }
 var ErrorCode_value = map[string]int32{
-	"SUCCESS":                          0,
-	"CANCELLED":                        1,
-	"UNKNOWN_ERROR":                    2,
-	"BAD_INPUT":                        3,
-	"DEADLINE_EXCEEDED":                4,
-	"INTEGRITY_ERROR":                  5,
-	"PERMISSION_DENIED":                6,
-	"THROTTLED_ERROR":                  7,
-	"QUERY_NOT_SERVED":                 8,
-	"NOT_IN_TX":                        9,
-	"INTERNAL_ERROR":                   10,
-	"RESOURCE_TEMPORARILY_UNAVAILABLE": 11,
+	"SUCCESS":            0,
+	"CANCELLED":          1,
+	"UNKNOWN_ERROR":      2,
+	"BAD_INPUT":          3,
+	"DEADLINE_EXCEEDED":  4,
+	"INTEGRITY_ERROR":    5,
+	"PERMISSION_DENIED":  6,
+	"RESOURCE_EXHAUSTED": 7,
+	"QUERY_NOT_SERVED":   8,
+	"NOT_IN_TX":          9,
+	"INTERNAL_ERROR":     10,
+	"TRANSIENT_ERROR":    11,
 }
 
 func (x ErrorCode) String() string {
